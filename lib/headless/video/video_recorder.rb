@@ -2,17 +2,19 @@ require 'tempfile'
 
 class Headless
   class VideoRecorder
-    attr_accessor :pid_file_path, :tmp_file_path, :log_file_path
+    attr_accessor :pid_file_path, :tmp_file_path, :log_file_path, :ffmpeg_bin_path
 
     def initialize(display, dimensions, options = {})
-      CliUtil.ensure_application_exists!('ffmpeg', 'Ffmpeg not found on your system. Install it with sudo apt-get install ffmpeg')
-
       @display = display
       @dimensions = dimensions
 
       @pid_file_path = options.fetch(:pid_file_path, "/tmp/.headless_ffmpeg_#{@display}.pid")
       @tmp_file_path = options.fetch(:tmp_file_path, "/tmp/.headless_ffmpeg_#{@display}.mov")
       @log_file_path = options.fetch(:log_file_path, "/dev/null")
+      @ffmpeg_bin_path = options.fetch(:ffmpeg_bin_path,   CliUtil.path_to('ffmpeg'))
+
+      CliUtil.ensure_application_exists!(@ffmpeg_bin_path, "#{@ffmpeg_bin_path} not found on your system. Install it with sudo apt-get install ffmpeg")
+
       @codec = options.fetch(:codec, "qtrle")
       @nomouse = options.fetch(:nomouse, false)
       @frame_rate = options.fetch(:frame_rate, 30)
@@ -32,7 +34,7 @@ class Headless
       # -g 600 (GOP size) is no longer supported
      
       dimensions_trimmed = /(\d+x\d+)x/.match(@dimensions)[1]
-      cmd = "#{CliUtil.path_to('ffmpeg')} -y -r #{@frame_rate} -s #{dimensions_trimmed} -f x11grab #{nomouse} -i :#{@display} -vcodec #{@codec} #{@tmp_file_path}" 
+      cmd = "#{@ffmpeg_bin_path} -y -r #{@frame_rate} -s #{dimensions_trimmed} -f x11grab #{nomouse} -i :#{@display} -vcodec #{@codec} #{@tmp_file_path}"
       CliUtil.fork_process(cmd, @pid_file_path, @log_file_path)
       at_exit do
         exit_status = $!.status if $!.is_a?(SystemExit)
